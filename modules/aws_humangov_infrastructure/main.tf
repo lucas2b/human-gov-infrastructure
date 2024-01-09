@@ -1,3 +1,4 @@
+# creation of security group with ssh port and http port
 resource "aws_security_group" "state_ec2_sg" {
   name        = "humangov-${var.state_name}-ec2-sg"
   description = "Allow traffic on ports 22 and 80"
@@ -21,6 +22,7 @@ resource "aws_security_group" "state_ec2_sg" {
   }
 }
 
+# creation of the EC2 instance of the given state
 resource "aws_instance" "state_ec2" {
   ami           = "ami-007855ac798b5175e"
   instance_type = "t2.micro"
@@ -32,6 +34,7 @@ resource "aws_instance" "state_ec2" {
   }
 }
 
+# creation of the dynamodb table for the application use
 resource "aws_dynamodb_table" "state_dynamodb" {
   name           = "humangov-${var.state_name}-dynamodb"
   billing_mode   = "PAY_PER_REQUEST"
@@ -47,12 +50,14 @@ resource "aws_dynamodb_table" "state_dynamodb" {
   }
 }
 
+# generating a random string for the bucket name
 resource "random_string" "bucket_suffix" {
   length  = 4
   special = false
   upper = false
 }
 
+# creation of the S3 bucket for the application use
 resource "aws_s3_bucket" "state_s3" {
   bucket = "humangov-${var.state_name}-s3-${random_string.bucket_suffix.result}"
 
