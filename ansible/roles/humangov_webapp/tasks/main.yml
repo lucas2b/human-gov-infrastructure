@@ -1,0 +1,119 @@
+# here goes all the tasks that the module(role) will execute
+
+- name: Update and upgrade apt packages
+  apt:
+    upgrade: dist
+    update_cache: yes # apt-get update
+  become: yes
+  
+# install all apt dependencies via apt
+- name: Install required packages
+  apt:
+    name:
+      - nginx
+      - python3-pip
+      - python3-dev
+      - build-essential
+      - libssl-dev
+      - libffi-dev
+      - python3-setuptools
+      - python3-venv
+      - unzip
+    state: present
+  become: yes
+  
+# setting firewall rule of linux to allow traffic on nginx
+# UFW = uncomplicated firewall
+- name: Ensure UFW allows Nginx HTTP traffic
+  ufw:
+    rule: allow
+    name: 'Nginx HTTP' # rulw name
+  become: yes
+
+# create the directory where the project will exist and set appropriate permissions
+- name: Create project directory
+  file:
+    path: "{{ project_path }}" # comes from defaults folder
+    state: directory
+    owner: "{{ username }}" # comes from defaults folder
+    group: "{{ username }}" # comes from defaults folder
+    mode: '0755'
+  become: yes
+  
+# create a python environment inside the project folder
+- name: Create Python virtual environment
+  command:
+    cmd: python3 -m venv {{ project_path }}/humangovenv
+    creates: "{{ project_path }}/humangovenv" # location
+    
+# copy the .zip of the application (local folder) to remote project folder
+- name: Copy the application zip file to the destination
+  copy:
+    src: "{{ source_application_path }}/humangov-app.zip" # local file on Cloud9
+    dest: "{{ project_path }}"
+    owner: "{{ username }}"
+    mode: '0644'
+  become: yes
+  
+# unzip the application file that is located on remote project folder
+- name: Unzip the application zip file
+  unarchive:
+    src: "{{ project_path }}/humangov-app.zip"
+    dest: "{{ project_path }}"
+    remote_src: yes
+  notify: Restart humangov
+  become: yes
+  
+# invoke pip to install python dependencies of the project  
+- name: Install python packages from requirements.txt into the virtual environment
+  pip:
+    requirements: "{{ project_path }}/requirements.txt"
+    virtualenv: "{{ project_path }}/humangovenv"
+
+# will create a systemd for the gunicorn to run as a service
+# this will use a jinja2 template to create the service file called humangov.service
+- name: Create systemd service file for Gunicorn
+  template:
+    src: humangov.service.j2 # template located on template directory
+    dest: /etc/systemd/system/{{ project_name }}.service # will create a humangov.service
+  notify: Restart humangov
+  become: yes
+
+# enabling and starting the just created service for gunicorn (humangov.service)
+- name: Enable and start Gunicorn service humangov.service
+  systemd:
+    name: "{{ project_name }}"
+    enabled: yes
+    state: started
+  become: yes
+  
+# removing the default site of welcome of nginx
+- name: Remove the default nginx configuration file
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  become: yes
+  
+# change persmissions of the user's home directory
+- name: Change permissions of the user's home directory
+  file:
+    path: "/home/{{ username }}"
+    mode: '0755'
+  become: yes
+  
+# creating a configuration file on nginx configuration file
+# that point to socket of the gunicorn that will exist inside project folder
+- name: Configure Nginx to proxy requests
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/sites-available/{{ project_name }}
+  become: yes
+
+# enabling the just created site-available as site-enabled
+- name: Enable Nginx configuration
+  file:
+    src: /etc/nginx/sites-available/{{ project_name }}
+    dest: /etc/nginx/sites-enabled/{{ project_name }}
+    state: link
+  notify: Restart Nginx
+  become: yes

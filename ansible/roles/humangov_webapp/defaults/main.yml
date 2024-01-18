@@ -1,0 +1,9 @@
+# contains default variables to be using during the installations
+username: ubuntu
+project_name: humangov
+
+# project path that will exist inside the linux of EC2 instance
+project_path: "/home/{{ username }}/{{ project_name }}"
+
+# location of the source code of application on the cloud9
+source_application_path: /home/ec2-user/environment/human-gov-application/src/ 

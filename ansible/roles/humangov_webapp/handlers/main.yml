@@ -1,0 +1,16 @@
+# called when other task ends its execution
+# started by a 'notify' invokation
+
+# systemctl command
+- name: Restart Nginx
+  systemd:
+    name: nginx
+    state: restarted
+  become: yes
+
+# systemctl command
+- name: Restart humangov
+  systemd:
+    name: humangov
+    state: restarted
+  become: yes

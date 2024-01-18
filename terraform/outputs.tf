@@ -1,4 +1,3 @@
-# will output based on the module output
 output "state_infrastructure_outputs" {
   value = {
     for state, infrastructure in module.aws_humangov_infrastructure :
